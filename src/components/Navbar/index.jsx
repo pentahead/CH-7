@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Navbar, Nav, Container, Image } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
 import { setToken, setUser } from "../../redux/slices/auth";
 import { profile } from "../../service/auth";
+import { useQuery } from "@tanstack/react-query";
 
 const NavigationBar = () => {
   const dispatch = useDispatch();
@@ -11,36 +12,33 @@ const NavigationBar = () => {
 
   const { user, token } = useSelector((state) => state.auth);
 
-  useEffect(() => {
-    const getProfile = async (token) => {
-      // fetch get profile
-      const result = await profile(token);
-      if (result.success) {
-        // set the user state here
-        dispatch(setUser(result.data));
-        return;
-      }
-
-      //jika token yang dimasukan tidak valid/ngawur
-      dispatch(setToken(null));
-      dispatch(setUser(null));
-      //redirect to login
-      navigate({ to: "/login" });
-    };
-    if (token) {
-      getProfile(token);
-    }
-  }, [dispatch, navigate, token]);
-
-  const logout = (event) => {
-    event.preventDefault();
-
+  const handleLogout = useCallback(() => {
     // delete the local storage here
     dispatch(setUser(null));
     dispatch(setToken(null));
 
-    //redirect to login
+    // redirect to login
     navigate({ to: "/login" });
+  }, [dispatch, navigate]);
+
+  // Use react query to fetch API
+  const { data, isSuccess, isError } = useQuery({
+    queryKey: ["profile"],
+    queryFn: profile,
+    enabled: token ? true : false,
+  });
+
+  useEffect(() => {
+    if (isSuccess) {
+      dispatch(setUser(data?.data));
+    } else if (isError) {
+      handleLogout();
+    }
+  }, [isSuccess, isError, data, dispatch, handleLogout]);
+
+  const logout = (event) => {
+    event.preventDefault();
+    handleLogout();
   };
 
   return (

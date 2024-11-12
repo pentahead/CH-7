@@ -9,62 +9,75 @@ import Image from "react-bootstrap/Image";
 import { getUniversities } from "../../../service/university";
 import { getClasses } from "../../../service/class";
 import { getDetailStudent, updateStudent } from "../../../service/student";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import Protected from "../../../components/Auth/Protected";
 
 export const Route = createLazyFileRoute("/students/edit/$id")({
-  component: EditStudent,
+  component: () => (
+    <Protected roles={[1]}>
+      <EditStudent />
+    </Protected>
+  ),
 });
 
 function EditStudent() {
   const { id } = Route.useParams();
-  const [student, setStudent] = useState(null);
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isNotFound, setIsNotFound] = useState(false);
-  const [currentProfilePicture, setCurrentProfilePicture] = useState("");
+
   const [name, setName] = useState("");
   const [nickName, setNickName] = useState("");
+  const [currentProfilePicture, setCurrentProfilePicture] = useState("");
   const [profilePicture, setProfilePicture] = useState(undefined);
-  const [universities, setUniversities] = useState([]);
   const [universityId, setUniversityId] = useState(0);
-  const [classes, setClasses] = useState([]);
   const [classId, setClassId] = useState(0);
 
+  const { data: universities } = useQuery({
+    queryKey: ["universities"],
+    queryFn: getUniversities,
+    enabled: !!id,
+  });
+
+  const { data: classes } = useQuery({
+    queryKey: ["classes"],
+    queryFn: getClasses,
+    enabled: !!id,
+  });
+
+  const {
+    data: student,
+    isSuccess,
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey: ["student", id],
+    queryFn: () => getDetailStudent(id),
+    enabled: !!id,
+  });
+
+  const { mutate: update, isPending: isUpdateProcessing } = useMutation({
+    mutationFn: (request) => updateStudent(id, request),
+    onSuccess: () => {
+      navigate({ to: `/students/${id}` });
+    },
+    onError: (error) => {
+      toast.error(error?.message);
+    },
+  });
+
   useEffect(() => {
-    const getDetailStudentData = async (id) => {
-      setIsLoading(true);
+    if (isSuccess) {
+      setName(student?.name);
+      setNickName(student?.nick_name);
+      setUniversityId(student?.university_id);
+      setClassId(student?.class_id);
+      setCurrentProfilePicture(student?.profile_picture);
+    }
+  }, [isSuccess, student]);
 
-      const result = await getDetailStudent(id);
-      if (result?.success) {
-        setName(result.data.name);
-        setNickName(result.data.nick_name);
-        setUniversityId(result.data.university_id);
-        setClassId(result.data.class_id);
-        setProfilePicture(result.data.profile_picture);
-        setIsNotFound(false);
-      } else {
-        setIsNotFound(true);
-        navigate({ to: "/" });
-      }
-      setIsLoading(false);
-    };
-
-    const getUniversitiesData = async () => {
-      const result = await getUniversities();
-      if (result?.success) {
-        setUniversities(result?.data);
-      }
-    };
-    const getClassesData = async () => {
-      const result = await getClasses();
-      if (result?.success) {
-        setClasses(result?.data);
-      }
-    };
-
-    getDetailStudentData(id);
-    getUniversitiesData();
-    getClassesData();
-  }, [id]);
+  if (isError) {
+    navigate({ to: "/" });
+    return;
+  }
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -72,16 +85,11 @@ function EditStudent() {
     const request = {
       name,
       nickName,
-      universityId,
       classId,
+      universityId,
       profilePicture,
     };
-
-    const result = await updateStudent(id, request);
-    if (result?.success) {
-      navigate({ to: "/students/$id" });
-    }
-    return result;
+    update(request);
   };
 
   return (

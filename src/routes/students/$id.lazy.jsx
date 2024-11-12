@@ -1,4 +1,4 @@
-import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
@@ -6,6 +6,7 @@ import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import { getDetailStudent, deleteStudent } from "../../service/student";
 import { useSelector } from "react-redux";
+import { useMutation } from "@tanstack/react-query";
 
 export const Route = createLazyFileRoute("/students/$id")({
   component: StudentDetail,
@@ -13,31 +14,36 @@ export const Route = createLazyFileRoute("/students/$id")({
 
 function StudentDetail() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
+
   const { user } = useSelector((state) => state.auth);
 
   const [student, setStudent] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isNotFound, setIsNotFound] = useState(false);
+
+  // Use react query to fetch API
+  const { data, isSuccess, isPending, isError } = useQuery({
+    queryKey: ["students", id],
+    queryFn: () => getDetailStudent(id),
+    enabled: !!id,
+  });
+
+  const { mutate: deleting, isPending: isDeleteProcessing } = useMutation({
+    mutationFn: () => deleteStudent(id),
+    onSuccess: () => {
+      navigate({ to: "/" });
+    },
+    onError: (error) => {
+      toast.error(error?.message);
+    },
+  });
 
   useEffect(() => {
-    const getDetailStudentData = async (id) => {
-      setIsLoading(true);
-      const result = await getDetailStudent(id);
-      if (result?.success) {
-        setStudent(result.data);
-        setIsNotFound(false);
-      } else {
-        setIsNotFound(true);
-      }
-      setIsLoading(false);
-    };
-
-    if (id) {
-      getDetailStudentData(id);
+    if (isSuccess) {
+      setStudent(data);
     }
-  }, [id]);
+  }, [data, isSuccess]);
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <Row className="mt-5">
         <Col>
@@ -47,7 +53,7 @@ function StudentDetail() {
     );
   }
 
-  if (isNotFound) {
+  if (isError) {
     return (
       <Row className="mt-5">
         <Col>
@@ -56,18 +62,26 @@ function StudentDetail() {
       </Row>
     );
   }
+
   const onDelete = async (event) => {
     event.preventDefault();
 
-    if (confirm("Are you sure to delete this data?")) {
-      const result = await deleteStudent(id);
-      if (result?.success) {
-        navigate({ to: "/" });
-        return;
-      }
-
-      alert(result?.message);
-    }
+    confirmAlert({
+      title: "Confirm to delete",
+      message: "Are you sure to delete this data?",
+      buttons: [
+        {
+          label: "Yes",
+          onClick: async () => {
+            deleting();
+          },
+        },
+        {
+          label: "No",
+          onClick: () => {},
+        },
+      ],
+    });
   };
 
   return (

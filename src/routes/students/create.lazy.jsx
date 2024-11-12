@@ -9,6 +9,7 @@ import Image from "react-bootstrap/Image";
 import { getUniversities } from "../../service/university";
 import { getClasses } from "../../service/class";
 import { createStudent } from "../../service/student";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import Protected from "../../components/Auth/Protected";
 
 export const Route = createLazyFileRoute("/students/create")({
@@ -21,47 +22,47 @@ export const Route = createLazyFileRoute("/students/create")({
 
 function CreateStudent() {
   const navigate = useNavigate();
+
   const [name, setName] = useState("");
   const [nickName, setNickName] = useState("");
-  const [currentProfilePicture, setCurrentProfilePicture] = useState("");
   const [profilePicture, setProfilePicture] = useState(undefined);
-  const [universities, setUniversities] = useState([]);
+  const [currentProfilePicture, setCurrentProfilePicture] = useState(undefined);
   const [universityId, setUniversityId] = useState(0);
-  const [classes, setClasses] = useState([]);
   const [classId, setClassId] = useState(0);
 
-  useEffect(() => {
-    const getUniversitiesData = async () => {
-      const result = await getUniversities();
-      if (result?.success) {
-        setUniversities(result?.data);
-      }
-    };
-    const getClassesData = async () => {
-      const result = await getClasses();
-      if (result?.success) {
-        setClasses(result?.data);
-      }
-    };
+  const { data: universities } = useQuery({
+    queryKey: ["universities"],
+    queryFn: getUniversities,
+    enabled: true,
+  });
 
-    getUniversitiesData();
-    getClassesData();
-  }, []);
+  const { data: classes } = useQuery({
+    queryKey: ["classes"],
+    queryFn: getClasses,
+    enabled: true,
+  });
+
+  const { mutate: create, isPending } = useMutation({
+    mutationFn: (request) => createStudent(request),
+    onSuccess: () => {
+      navigate({ to: "/" });
+    },
+    onError: (error) => {
+      toast.error(error?.message);
+    },
+  });
 
   const onSubmit = async (event) => {
     event.preventDefault();
+
     const request = {
       name,
       nickName,
-      profilePicture,
-      universityId,
       classId,
+      universityId,
+      profilePicture,
     };
-    const result = await createStudent(request);
-    if (result?.success) {
-      navigate({ to: "/" });
-    }
-    return result;
+    create(request);
   };
 
   return (
