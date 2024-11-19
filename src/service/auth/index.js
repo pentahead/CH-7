@@ -42,3 +42,18 @@ export const profile = async () => {
   const result = await response.json();
   return result;
 };
+
+export const googleLoginApi = async (tokenResponse) => {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_URL}/auth/google/login`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ access_token: tokenResponse.access_token }),
+    }
+  );
+  const result = await response.json();
+  return result;
+};

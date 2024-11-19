@@ -7,7 +7,9 @@ import Col from "react-bootstrap/Col";
 import Row from "react-bootstrap/Row";
 import { useDispatch, useSelector } from "react-redux";
 import { setToken } from "../redux/slices/auth";
-import { login } from "../service/auth";
+import { login, googleLoginApi } from "../service/auth";
+import { useGoogleLogin } from "@react-oauth/google";
+import { toast } from "react-toastify";
 
 export const Route = createLazyFileRoute("/login")({
   component: Login,
@@ -16,21 +18,20 @@ export const Route = createLazyFileRoute("/login")({
 function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
   const { token } = useSelector((state) => state.auth);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   useEffect(() => {
     if (token) {
-      // redirect to dashboard
+      // Redirect ke dashboard jika token ada
       navigate({ to: "/" });
     }
-  }, [navigate]);
+  }, [token, navigate]);
+
   const onSubmit = async (e) => {
     e.preventDefault();
-    // hit the login API
-    // define req body
     const body = {
       email,
       password,
@@ -38,22 +39,30 @@ function Login() {
     const result = await login(body);
     if (result.success) {
       dispatch(setToken(result.data.data.token));
-      // localStorage.setItem("token", result.data.data.token);
-      console.log(result);
-      alert(result.data.message);
-
-      //redirect to home
+      toast.success("Login successful!");
       navigate({ to: "/" });
       return;
     }
-
-    alert(result.errors);
+    toast.error("Login failed");
   };
 
+  const googlelogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      console.log("Google", tokenResponse);
+      const result = await googleLoginApi(tokenResponse);
+      if (result.data.token) {
+        dispatch(setToken(result.data.token));
+        toast.success("Login successful!");
+        navigate({ to: "/" });
+      } else {
+        toast.error(result.message || "Login failed");
+      }
+    },
+  });
+
   return (
-    <div className="d-flex justify-content-center align-items-center vh-100 ">
+    <div className="d-flex justify-content-center align-items-center vh-100">
       <div style={{ maxWidth: "650px", width: "100%" }}>
-        {/* <h1>{password}</h1> */}
         <Card className="shadow-lg">
           <Card.Header className="text-center bg-primary text-white fs-4 fw-bold">
             Welcome Back!
@@ -95,6 +104,13 @@ function Login() {
               </Form.Group>
               <Button variant="primary" type="submit" className="w-100 fw-bold">
                 Login
+              </Button>
+              <Button
+                onClick={() => googlelogin()}
+                variant="primary"
+                className="w-100 fw-bold mt-4"
+              >
+                Login with Google
               </Button>
             </Form>
           </Card.Body>

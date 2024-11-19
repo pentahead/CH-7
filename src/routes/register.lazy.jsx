@@ -6,6 +6,9 @@ import Col from "react-bootstrap/Col";
 import Row from "react-bootstrap/Row";
 import { useState, useEffect } from "react";
 import { register } from "../service/auth";
+import { useDispatch, useSelector } from "react-redux";
+
+import { useGoogleLogin } from "@react-oauth/google";
 
 export const Route = createLazyFileRoute("/register")({
   component: Register,
@@ -50,6 +53,11 @@ function Register() {
 
     alert(result.errors);
   };
+
+  const googlelogin = useGoogleLogin({
+    onSuccess: (tokenResponse) => console.log(tokenResponse),
+    onError: (err) => console.log(err),
+  });
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 ">
       <div style={{ maxWidth: "650px", width: "100%" }}>
@@ -159,6 +167,14 @@ function Register() {
               {/* Register Button */}
               <Button variant="success" type="submit" className="w-100 fw-bold">
                 Register
+              </Button>
+              <Button
+                onClick={googlelogin}
+                variant="success"
+                type="submit"
+                className="w-100 fw-bold mt-4"
+              >
+                Register with Google
               </Button>
             </Form>
           </Card.Body>

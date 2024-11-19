@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { store } from "./redux/store";
 import "bootstrap/dist/css/bootstrap.min.css";
 
+
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 
